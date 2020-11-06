@@ -42,3 +42,55 @@ int ThreadPool::GetFreeThreadId()
 	}
 	return -1;
 }
+
+DWORD WINAPI ThreadPool::funcWrapper(void* args)
+{
+	auto params = (ThreadStatus*)(args);
+
+	try
+	{
+		params->func(params->funcArgs);
+	}
+	catch (std::exception & e)
+	{
+		params->WriteLog("|> Exception: " + std::string(e.what()) + " , thread id = " + std::to_string(params->id));
+	}
+
+	CloseHandle(params->threadHandle);
+	params->threadHandle = 0;
+	params->isWorking = false;
+	params->func = nullptr;
+
+	return 0;
+}
+
+void ThreadPool::waitAll()
+{
+	for (int i = 0; i < this->threadLimit; i++)
+	{
+		if (this->threadMap[i].isWorking)
+		{
+			WaitForSingleObjectEx(this->threadMap[i].threadHandle, INFINITE, FALSE);
+		}
+	}
+}
+
+void ThreadPool::run(Procedure proc, void* args)
+{
+	Sleep(5);
+	int freeThreadId = GetFreeThreadId();
+	if (freeThreadId == -1)
+	{
+		this->threadMap[freeThreadId].WriteLog("|> Not found any free thread, task will be destroyed :(");
+		return;
+	}
+	auto params = &this->threadMap[freeThreadId];
+
+	params->func = proc;
+	params->funcArgs = args;
+	params->isWorking = true;
+
+	params->WriteLog("|> Task was added (Thread id = " + std::to_string(freeThreadId) + ")");
+
+	params->threadHandle = (void*)CreateThread(0, 0, &ThreadPool::funcWrapper, params, 0, 0);
+}
