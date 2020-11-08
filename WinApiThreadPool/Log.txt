@@ -1,15 +1,6 @@
-|> New thread created, id = 0
-|> New thread created, id = 1
-|> New thread created, id = 2
-|> New thread created, id = 3
-|> New thread created, id = 4
-|> Task was added (Thread id = 0)
-|> Task was added (Thread id = 1)
-|> Task was added (Thread id = 2)
-|> Task was added (Thread id = 3)
-|> Task was added (Thread id = 4)
+|> New thread created, id = 11748
+|> New thread created, id = 17296
+Added new task
+Added new task
 |> Not found any free thread, task will be destroyed :(
-|> Task was added (Thread id = 0)
-|> Task was added (Thread id = 1)
-|> Task was added (Thread id = 2)
-|> Task was added (Thread id = 3)
+|> Not found any free thread, task will be destroyed :(

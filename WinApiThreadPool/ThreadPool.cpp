@@ -1,28 +1,15 @@
 #include "ThreadPool.h"
 
-ThreadStatus::ThreadStatus(int id)
-{
-	this->id = id;
-	this->func = nullptr;
-	this->funcArgs = nullptr;
-	this->isWorking = false;
-	this->threadHandle = 0;
-}
+#define MAX_THREADS 255
 
-ThreadStatus::ThreadStatus() {}
+bool ThreadPool::exitFlag = false;
+int ThreadPool::threadLimit = 0;
+std::mutex ThreadPool::mutex;
+std::list<Task> ThreadPool::tasks;
+int ThreadPool::currentNumOfThreads = 0;
+HANDLE ThreadsArray[MAX_THREADS];
 
-ThreadPool::ThreadPool(int maxTasks)
-{
-	this->threadLimit = maxTasks;
-	for (int i = 0; i < maxTasks; i++)
-	{
-		int newThreadId = (int)this->threadMap.size();
-		this->threadMap.emplace(newThreadId, ThreadStatus(newThreadId));
-		this->threadMap[newThreadId].WriteLog("|> New thread created, id = " + std::to_string(newThreadId));
-	}
-};
-
-void ThreadStatus::WriteLog(std::string message)
+void ThreadPool::WriteLog(std::string message)
 {
 	std::ofstream out("Log.txt", std::ios::app);
 	if (out.is_open())
@@ -32,65 +19,78 @@ void ThreadStatus::WriteLog(std::string message)
 	out.close();
 }
 
-int ThreadPool::GetFreeThreadId()
+ThreadPool::ThreadPool(int maxThreads)
 {
-	Sleep(10);
-	for (int i = 0; i < this->threadMap.size(); i++)
-	{
-		if (!this->threadMap[i].isWorking)
-			return i;
-	}
-	return -1;
-}
+	DWORD threadId[MAX_THREADS];
+	threadLimit = maxThreads;
 
-DWORD WINAPI ThreadPool::funcWrapper(void* args)
+	for (int i = 0; i < maxThreads; i++)
+	{
+		ThreadsArray[i] = CreateThread(NULL, 0, ThreadPool::FuncWrapper, 0, 0, &threadId[i]);
+		WriteLog("|> New thread created, id = " + std::to_string(threadId[i]));
+	}
+};
+
+DWORD WINAPI ThreadPool::FuncWrapper(void* args)
 {
-	auto params = (ThreadStatus*)(args);
+	Task task;
 
-	try
+	while (!exitFlag)
 	{
-		params->func(params->funcArgs);
-	}
-	catch (std::exception & e)
-	{
-		params->WriteLog("|> Exception: " + std::string(e.what()) + " , thread id = " + std::to_string(params->id));
-	}
+		if (!tasks.empty())
+		{
+			mutex.lock();
+			if (!tasks.empty())
+			{
+				task = tasks.front();
+				tasks.pop_front();
+			}
+			else
+			{
+				mutex.unlock();
+				continue;
+			}
+			mutex.unlock();
 
-	CloseHandle(params->threadHandle);
-	params->threadHandle = 0;
-	params->isWorking = false;
-	params->func = nullptr;
-
+			try
+			{
+				task.proc(task.args);
+			}
+			catch (const std::exception &e)
+			{
+				WriteLog(e.what());
+			}
+			currentNumOfThreads--;
+		}
+	}
 	return 0;
 }
 
-void ThreadPool::waitAll()
+void ThreadPool::Run(Procedure proc, void* args)
 {
-	for (int i = 0; i < this->threadLimit; i++)
+	Task task;
+	task.proc = proc;
+	task.args = args;
+
+	if (currentNumOfThreads < threadLimit)
 	{
-		if (this->threadMap[i].isWorking)
-		{
-			WaitForSingleObjectEx(this->threadMap[i].threadHandle, INFINITE, FALSE);
-		}
+		tasks.push_back(task);
+		currentNumOfThreads++;
+		WriteLog("Added new task");
+	}
+	else
+	{
+		WriteLog("|> Not found any free thread, task will be destroyed :(");
 	}
 }
 
-void ThreadPool::run(Procedure proc, void* args)
+void ThreadPool::WaitAll()
 {
-	Sleep(5);
-	int freeThreadId = GetFreeThreadId();
-	if (freeThreadId == -1)
+	exitFlag = true;
+	WaitForMultipleObjects(threadLimit, ThreadsArray, TRUE, INFINITE);
+
+	for (int i = 0; i < threadLimit; i++)
 	{
-		this->threadMap[freeThreadId].WriteLog("|> Not found any free thread, task will be destroyed :(");
-		return;
+		CloseHandle(ThreadsArray[i]);
 	}
-	auto params = &this->threadMap[freeThreadId];
-
-	params->func = proc;
-	params->funcArgs = args;
-	params->isWorking = true;
-
-	params->WriteLog("|> Task was added (Thread id = " + std::to_string(freeThreadId) + ")");
-
-	params->threadHandle = (void*)CreateThread(0, 0, &ThreadPool::funcWrapper, params, 0, 0);
 }

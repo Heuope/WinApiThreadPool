@@ -1,21 +1,28 @@
 #include <iostream>
 #include "ThreadPool.h"
 
-void Test(void* args)
+void Test1(void* args)
 {
 	Sleep(100);
 	std::cerr << "hello world" << std::endl;
 }
 
+void Test2(void* args)
+{
+	Sleep(200);
+	std::cerr << "hello world" << std::endl;
+}
+
 int main()
 {
-	ThreadPool tp(5);
+	ThreadPool tp(2);
 
-	for (int i = 0; i < 10; i++)
-	{
-		tp.run(Test, nullptr);
-	}
+	tp.Run(Test1, nullptr);
+	tp.Run(Test2, nullptr);
 
-	tp.waitAll();
+	tp.Run(Test2, nullptr);
+	tp.Run(Test1, nullptr);
+
+	tp.WaitAll();
 	return 0;
 }

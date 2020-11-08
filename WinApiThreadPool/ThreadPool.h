@@ -3,36 +3,36 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <mutex>
 #include <string>
 #include <windows.h>
 #include <process.h>
+#include <list>
 
 typedef void (*Procedure)(void*);
 
-class ThreadStatus
+class Task
 {
 public:
-	ThreadStatus(int id);
-	ThreadStatus();
-	void WriteLog(std::string message);
-	bool isWorking;
-	void* threadHandle;
-	int id;
-	Procedure func;
-	void* funcArgs;
+	Procedure proc;
+	void* args;
 };
 
 class ThreadPool
 {
 private:
-	std::map<int, ThreadStatus> threadMap;
-	int threadLimit;
-	int GetFreeThreadId();
-	static DWORD WINAPI _stdcall funcWrapper(void* args);
+	static DWORD WINAPI _stdcall FuncWrapper(void* args);
 
 public:
-	ThreadPool(int maxTasks);
+	static int threadLimit;
+	static bool exitFlag;
+	static std::mutex mutex;
+	static std::list<Task> tasks;
+	static int currentNumOfThreads;
 
-	void run(Procedure proc, void* args);
-	void waitAll();
+	ThreadPool(int maxThreads);
+
+	static void WriteLog(std::string message);
+	void Run(Procedure proc, void* args);
+	void WaitAll();
 };
