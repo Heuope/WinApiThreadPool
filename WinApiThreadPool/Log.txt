@@ -1,5 +1,5 @@
-|> New thread created, id = 11748
-|> New thread created, id = 17296
+|> New thread created, id = 9744
+|> New thread created, id = 9708
 Added new task
 Added new task
 |> Not found any free thread, task will be destroyed :(

@@ -4,9 +4,9 @@
 
 bool ThreadPool::exitFlag = false;
 int ThreadPool::threadLimit = 0;
-std::mutex ThreadPool::mutex;
 std::list<Task> ThreadPool::tasks;
 int ThreadPool::currentNumOfThreads = 0;
+HANDLE ThreadPool::mutex;
 HANDLE ThreadsArray[MAX_THREADS];
 
 void ThreadPool::WriteLog(std::string message)
@@ -21,6 +21,8 @@ void ThreadPool::WriteLog(std::string message)
 
 ThreadPool::ThreadPool(int maxThreads)
 {
+	mutex = CreateMutex(NULL, FALSE, L"UniqMutex");
+
 	DWORD threadId[MAX_THREADS];
 	threadLimit = maxThreads;
 
@@ -39,7 +41,7 @@ DWORD WINAPI ThreadPool::FuncWrapper(void* args)
 	{
 		if (!tasks.empty())
 		{
-			mutex.lock();
+			WaitForSingleObject(mutex, INFINITE);
 			if (!tasks.empty())
 			{
 				task = tasks.front();
@@ -47,10 +49,10 @@ DWORD WINAPI ThreadPool::FuncWrapper(void* args)
 			}
 			else
 			{
-				mutex.unlock();
+				ReleaseMutex(mutex);
 				continue;
 			}
-			mutex.unlock();
+			ReleaseMutex(mutex);
 
 			try
 			{
@@ -93,4 +95,5 @@ void ThreadPool::WaitAll()
 	{
 		CloseHandle(ThreadsArray[i]);
 	}
+	CloseHandle(mutex);
 }

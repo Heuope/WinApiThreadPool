@@ -26,7 +26,7 @@ private:
 public:
 	static int threadLimit;
 	static bool exitFlag;
-	static std::mutex mutex;
+	static HANDLE mutex;
 	static std::list<Task> tasks;
 	static int currentNumOfThreads;
 
